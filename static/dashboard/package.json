@@ -1,0 +1,1 @@
+{"dependencies":{"@forge/bridge":"^5.3.0","@forge/react":"^11.3.0","react":"^18.3.1"},"name":"shipready-dashboard","private":true,"scripts":{"build":"echo 'Built by forge deploy'"},"version":"1.0.0"}
