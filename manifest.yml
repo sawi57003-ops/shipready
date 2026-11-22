@@ -1,0 +1,128 @@
+modules:
+  rovo:agent:
+    - key: shipready-agent
+      name: "ShipReady"
+      description: "Release-readiness copilot for Jira. Ask if a version or sprint is ready to ship — it checks issues, blockers, pull requests and builds, then gives a SHIP / HOLD verdict with the risks that matter."
+      icon: resource:shipready-resources;icons/shipready.svg
+      prompt: resource:shipready-resources;prompts/agent-prompt.md
+      conversationStarters:
+        - "Is version 2.4 ready to ship?"
+        - "What is blocking this sprint?"
+        - "Show me the riskiest open issues in this project"
+        - "Write a release readiness report for version 2.4"
+      actions:
+        - get-version-readiness
+        - get-sprint-health
+        - get-issue-blockers
+        - create-release-report
+      followUpPrompt: "Suggest two useful follow-up questions the user could ask next, based on the risks found."
+  action:
+    - key: get-version-readiness
+      name: Get version readiness
+      function: getVersionReadiness
+      actionVerb: GET
+      description: |
+        Compute a release-readiness score for a Jira version (fixVersion). Returns the
+        verdict (SHIP, SHIP WITH CAUTION, or HOLD), a 0-100 score, counts of done vs open
+        issues, unresolved blockers, unassigned issues, overdue issues, open pull requests
+        and failing builds, plus a ranked list of the top risks.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: true
+          description: "The Jira project key, for example PROJ."
+        versionName:
+          title: Version name
+          type: string
+          required: true
+          description: "The exact name of the fixVersion to check, for example 2.4."
+    - key: get-sprint-health
+      name: Get sprint health
+      function: getSprintHealth
+      actionVerb: GET
+      description: |
+        Summarise the health of the currently active sprint in a Jira project: how many
+        issues are done vs open, which open issues are blocked, unassigned or overdue,
+        and which high-priority items are still unfinished.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: true
+          description: "The Jira project key, for example PROJ."
+    - key: get-issue-blockers
+      name: Get issue blockers
+      function: getIssueBlockers
+      actionVerb: GET
+      description: |
+        List the unresolved issues that block other work in a project: issues linked as
+        blockers that are still open, and open issues that are themselves blocked by
+        unresolved work.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: true
+          description: "The Jira project key, for example PROJ."
+    - key: create-release-report
+      name: Create release report
+      function: createReleaseReport
+      actionVerb: CREATE
+      description: |
+        Write a release-readiness report page to Confluence. Computes the readiness of a
+        Jira version, then creates a Confluence page with the verdict, score, risk list
+        and suggested next steps. Returns the page URL and the report text.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: true
+          description: "The Jira project key, for example PROJ."
+        versionName:
+          title: Version name
+          type: string
+          required: true
+          description: "The exact name of the fixVersion to report on, for example 2.4."
+        spaceKey:
+          title: Confluence space key
+          type: string
+          required: false
+          description: "The Confluence space key for the report page. If omitted, the first space the app can write to is used."
+  function:
+    - key: getVersionReadiness
+      handler: index.getVersionReadiness
+    - key: getSprintHealth
+      handler: index.getSprintHealth
+    - key: getIssueBlockers
+      handler: index.getIssueBlockers
+    - key: createReleaseReport
+      handler: index.createReleaseReport
+    - key: readinessResolver
+      handler: index.resolver
+  jira:projectPage:
+    - key: shipready-dashboard
+      resource: dashboard
+      resolver:
+        function: readinessResolver
+      title: ShipReady
+      layout: basic
+resources:
+  - key: shipready-resources
+    path: static
+  - key: dashboard
+    path: static/dashboard/build
+app:
+  runtime:
+    name: nodejs22.x
+  # NOTE: replace this placeholder id by running `forge create` (or `forge register`)
+  # with an Atlassian account. The id is assigned by Atlassian on registration.
+  id: ari:cloud:ecosystem::app/00000000-0000-0000-0000-000000000000
+  licensing:
+    enabled: false
+permissions:
+  scopes:
+    - read:jira-work
+    - read:jira-user
+    - read:confluence-space.summary
+    - write:confluence-content
